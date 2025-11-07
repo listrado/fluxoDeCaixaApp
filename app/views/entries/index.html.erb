@@ -1,0 +1,313 @@
+<%# app/views/entries/index.html.erb %>
+<% require "ostruct" %>
+<%
+  # Linhas “em branco” quando não há dados (só pra parecer planilha)
+  rows = @rows.present? ? @rows : Array.new(12) { { entry: OpenStruct.new(date: nil, category: nil, description: nil), income: 0.to_d, expense: 0.to_d, balance: 0.to_d } }
+%>
+
+<style>
+  .sheet-wrap { height: calc(100vh - 140px); display:flex; flex-direction:column; gap:.5rem; }
+  .sheet { border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; }
+  .sheet-scroller { overflow:auto; height:100%; }
+
+  /* Tabela estilo planilha: pode ultrapassar e gerar scroll horizontal */
+  .sheet-table {
+    width: auto;
+    min-width: 960px;
+    border-collapse:separate; border-spacing:0; table-layout:fixed; font-size:14px;
+  }
+
+  .sheet-table thead th {
+    position:sticky; top:0; background:#f1f5f9; z-index:2; font-weight:600; text-align:left; padding:10px 8px;
+    border-bottom:1px solid #cbd5e1; border-right:1px solid #e2e8f0;
+  }
+  .sheet-table thead th:last-child { border-right:none; }
+
+  .sheet-table tbody td {
+    padding:8px; border-top:1px solid #e2e8f0; border-right:1px solid #f1f5f9; background:#fff;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle;
+  }
+  .sheet-table tbody td:last-child { border-right:none; }
+  .sheet-table tbody tr:hover td { background:#f8fafc; }
+
+  .text-end { text-align:right; } .text-center { text-align:center; } .fw-semibold { font-weight:600; }
+
+  /* --- Cabeçalho redimensionável --- */
+  .resizable { position:relative; }
+  .resizer {
+    position:absolute; top:0; right:-3px; width:8px; height:100%;
+    cursor:col-resize; user-select:none; -webkit-user-select:none;
+    background:transparent;
+  }
+  .resizable::after { content:""; position:absolute; top:0; right:0; width:1px; height:100%; background:#e2e8f0; }
+  .resizing th, .resizing td { cursor:col-resize !important; }
+  .resizing .resizable::after { background:#3b82f6; }
+  .resizer::before {
+    content:""; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:4px; height:22px;
+    background: repeating-linear-gradient( to bottom, #93c5fd, #93c5fd 3px, transparent 3px, transparent 6px );
+    border-radius:2px; opacity:.9;
+  }
+
+  /* Botões */
+  .btn-xs { padding:4px 8px; border:1px solid #cbd5e1; background:#fff; border-radius:6px; font-size:12px; cursor:pointer; }
+  .btn-xs:hover { background:#f8fafc; }
+  .btn-primary { border-color:#bfdbfe; color:#1d4ed8; }
+  .btn-secondary { color:#334155; }
+</style>
+
+<style>
+  /* ===== Modal ===== */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15,23,42,.45);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  .modal {
+    background: #fff; border-radius: 12px; width: 100%; max-width: 620px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.15); overflow: hidden;
+  }
+  .modal-header { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .modal-title { font-weight:600; }
+  .modal-footer { padding: 12px 16px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; }
+
+  .modal-body { 
+    /* mais respiro nas laterais, especialmente à direita */
+    padding: 16px 22px; 
+  }
+
+  /* Seleção de tipo (Entrada / Saída / Investimento) */
+  .type-switch { display:flex; gap:8px; flex-wrap:wrap; }
+  .pill {
+    padding:6px 10px; border:1px solid #cbd5e1; background:#fff; border-radius:999px; font-size:13px; cursor:pointer;
+  }
+  .pill[data-type="income"].active  { border-color:#bbf7d0; background:#ecfccb; color:#166534; }
+  .pill[data-type="expense"].active { border-color:#fecaca; background:#fee2e2; color:#7f1d1d; }
+
+  /* Grid do formulário: rótulos alinhados */
+  .form-grid {
+    display:grid;
+    grid-template-columns: 140px 1fr;
+    gap: 10px 14px; /* linhas x colunas */
+    align-items:center;
+  }
+  .form-grid label { color:#334155; font-size:14px; }
+  .form-grid input[type="text"],
+  .form-grid input[type="date"],
+  .form-grid input[type="number"],
+  .form-grid textarea {
+    width: 100%;
+    box-sizing: border-box;        /* evita “estourar” a caixa */
+    padding:8px 10px;
+    border:1px solid #cbd5e1;
+    border-radius:8px;             /* bordas arredondadas dos dois lados */
+    font-size:14px;
+    line-height:1.2;
+  }
+  /* aparência quando travamos o campo (investimento) */
+  .form-grid input[readonly] {
+    background: #f8fafc;
+    color:#475569;
+    cursor: not-allowed;
+  }
+
+  .w-100 { width:100%; }
+  .btn { padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; cursor:pointer; }
+  .btn:hover { background:#f8fafc; }
+  .btn-primary { border-color:#bfdbfe; color:#1d4ed8; }
+</style>
+
+<div class="sheet-wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <h1 class="h5" style="margin:0;">Lançamentos</h1>
+
+    <button id="open-startbox" class="btn-xs btn-primary" type="button" title="Iniciar Caixa">
+      Iniciar Caixa
+    </button>
+  </div>
+
+  <%# ===== Modal com formulário inline ===== %>
+  <div id="startbox" class="modal-backdrop" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Novo lançamento</div>
+        <div class="type-switch">
+          <button type="button" class="pill active" data-type="income">Entrada</button>
+          <button type="button" class="pill" data-type="expense" data-preset="">Saída</button>
+          <button type="button" class="pill" data-type="expense" data-preset="investment">Investimento</button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <%= form_with model: Entry.new, url: entries_path, local: true, html: { id: "quick-entry-form" } do |f| %>
+          <%# Tipo travado via pills (income/expense) %>
+          <%= f.hidden_field :kind, value: "income", id: "entry-kind" %>
+          <%# preset para investimento (opcional) %>
+          <input type="hidden" name="preset" id="entry-preset" value="">
+
+          <div class="form-grid">
+            <label for="entry_date">Data</label>
+            <%= f.date_field :date, value: Date.current, class: "w-100" %>
+
+            <label for="entry_category">Categoria</label>
+            <%= f.text_field :category, placeholder: "Ex.: Vendas, Energia, Investimento…", class: "w-100", id: "entry-category" %>
+
+            <label for="entry_description">Descrição</label>
+            <%= f.text_field :description, placeholder: "Ex.: PIX cliente João / Fatura CPFL / Aporte XP", class: "w-100" %>
+
+            <label for="entry_amount">Valor</label>
+            <%= f.number_field :amount, step: "0.01", placeholder: "0,00", class: "w-100" %>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" id="close-startbox" class="btn">Cancelar</button>
+            <%= f.submit "Salvar", class: "btn btn-primary" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet">
+    <div class="sheet-scroller">
+      <table class="sheet-table" id="entries-sheet">
+        <colgroup>
+          <col data-col="0" style="width: 140px;">  <!-- Data -->
+          <col data-col="1" style="width: 220px;">  <!-- Categoria -->
+          <col data-col="2" style="width: 600px;">  <!-- Descrição (larga) -->
+          <col data-col="3" style="width: 180px;">  <!-- Entrada -->
+          <col data-col="4" style="width: 180px;">  <!-- Saída -->
+          <col data-col="5" style="width: 200px;">  <!-- Saldo -->
+          <col data-col="6" style="width: 180px;">  <!-- Ações -->
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="resizable">Data <span class="resizer" title="Arraste para redimensionar"></span></th>
+            <th class="resizable">Categoria <span class="resizer" title="Arraste para redimensionar"></span></th>
+            <th class="resizable">Descrição <span class="resizer" title="Arraste para redimensionar"></span></th>
+            <th class="resizable text-end">Entrada <span class="resizer" title="Arraste para redimensionar"></span></th>
+            <th class="resizable text-end">Saída <span class="resizer" title="Arraste para redimensionar"></span></th>
+            <th class="resizable text-end">Saldo <span class="resizer" title="Arraste para redimensionar"></span></th>
+            <th class="resizable text-center">Ações <span class="resizer" title="Arraste para redimensionar"></span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.each do |row| %>
+            <% e = row[:entry] %>
+            <tr>
+              <td><%= e.date ? e.date.strftime("%d/%m/%Y") : "" %></td>
+              <td><%= e.category %></td>
+              <td><%= e.description %></td>
+              <td class="text-end"><%= (row[:income].to_d > 0)  ? number_to_currency(row[:income],  unit: "R$ ") : "" %></td>
+              <td class="text-end"><%= (row[:expense].to_d > 0) ? number_to_currency(row[:expense], unit: "R$ ") : "" %></td>
+              <td class="text-end fw-semibold"><%= row[:balance].present? ? number_to_currency(row[:balance], unit: "R$ ") : "" %></td>
+              <td class="text-center">
+                <% if e&.id.present? %>
+                  <%= link_to "Ver", e, class: "btn-xs" %>
+                  <%= link_to "Editar", edit_entry_path(e), class: "btn-xs btn-primary" %>
+                  <%= link_to "Excluir", e, data: { turbo_method: :delete, turbo_confirm: "Remover este lançamento?" }, class: "btn-xs", style:"border-color:#fecaca;color:#b91c1c" %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Modal (abrir/fechar)
+  (function() {
+    const open = document.getElementById('open-startbox');
+    const close = document.getElementById('close-startbox');
+    const box = document.getElementById('startbox');
+    if (!open || !close || !box) return;
+
+    const show = () => { box.style.display = 'flex'; box.removeAttribute('aria-hidden'); }
+    const hide = () => { box.style.display = 'none'; box.setAttribute('aria-hidden', 'true'); }
+
+    open.addEventListener('click', show);
+    close.addEventListener('click', hide);
+    box.addEventListener('click', (e) => { if (e.target === box) hide(); });
+
+    // troca tipo (Entrada/Saída/Investimento)
+    const kindInput   = document.getElementById('entry-kind');
+    const presetInput = document.getElementById('entry-preset');
+    const catInput    = document.getElementById('entry-category');
+
+    // estado inicial (garantia)
+    catInput.removeAttribute('readonly');
+
+    document.querySelectorAll('.pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const type = btn.getAttribute('data-type');               // income | expense
+        const preset = btn.getAttribute('data-preset') || "";     // "" | "investment"
+        kindInput.value = type;
+        presetInput.value = preset;
+
+        if (preset === 'investment') {
+          // investimento = saída com categoria travada
+          catInput.value = "Investimento";
+          catInput.setAttribute('readonly', 'readonly');
+        } else {
+          catInput.removeAttribute('readonly');
+          if (catInput.value === "Investimento") {
+            catInput.value = "";
+          }
+        }
+      });
+    });
+  })();
+</script>
+
+<script>
+  // Redimensionar colunas + salvar larguras
+  (function() {
+    const table = document.getElementById('entries-sheet');
+    if (!table) return;
+
+    const storageKey = 'entries-sheet-colwidths';
+    const cols = table.querySelectorAll('colgroup col');
+
+    // Restaura larguras salvas
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      saved.forEach((w, idx) => { if (w) cols[idx].style.width = w; });
+    } catch(e){}
+
+    const headerCells = table.querySelectorAll('thead th.resizable');
+    headerCells.forEach((th, index) => {
+      const handle = th.querySelector('.resizer');
+      if (!handle) return;
+
+      let startX, startWidth;
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        startX = e.pageX;
+        const col = table.querySelector(`colgroup col[data-col="${index}"]`);
+        startWidth = (col ? col.getBoundingClientRect().width : th.getBoundingClientRect().width);
+        document.body.classList.add('resizing');
+
+        const onMove = (ev) => {
+          const delta = ev.pageX - startX;
+          const newWidth = Math.max(80, Math.round(startWidth + delta));
+          if (col) col.style.width = newWidth + 'px';
+        };
+
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          document.body.classList.remove('resizing');
+          const widths = Array.from(cols).map(c => c.style.width || null);
+          localStorage.setItem(storageKey, JSON.stringify(widths));
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    });
+  })();
+</script>

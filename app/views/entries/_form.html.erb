@@ -1,0 +1,40 @@
+<%= form_with model: entry, local: true do |form| %>
+  <%# Tipo vem travado pelo botão (income/expense) %>
+  <%= form.hidden_field :kind %>
+
+  <div class="field mb-2" style="margin-bottom:10px;">
+    <% if entry.kind == "income" %>
+      <span style="display:inline-block;padding:4px 8px;border:1px solid #bbf7d0;background:#ecfccb;border-radius:6px;color:#166534;font-size:12px;">
+        Tipo: Entrada
+      </span>
+    <% else %>
+      <span style="display:inline-block;padding:4px 8px;border:1px solid #fecaca;background:#fee2e2;border-radius:6px;color:#7f1d1d;font-size:12px;">
+        Tipo: Saída
+      </span>
+    <% end %>
+  </div>
+
+  <div class="field mb-3">
+    <%= form.label :date, "Data" %>
+    <%= form.date_field :date, class: "form-control" %>
+  </div>
+
+  <div class="field mb-3">
+    <%= form.label :category, "Categoria" %>
+    <%= form.text_field :category, class: "form-control" %>
+  </div>
+
+  <div class="field mb-3">
+    <%= form.label :description, "Descrição" %>
+    <%= form.text_area :description, rows: 2, class: "form-control" %>
+  </div>
+
+  <div class="field mb-3">
+    <%= form.label :amount, "Valor" %>
+    <%= form.number_field :amount, step: "0.01", class: "form-control" %>
+  </div>
+
+  <div class="actions">
+    <%= form.submit "Salvar", class: "btn btn-primary" %>
+  </div>
+<% end %>
