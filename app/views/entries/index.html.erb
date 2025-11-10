@@ -1,28 +1,25 @@
 <%# app/views/entries/index.html.erb %>
 <% require "ostruct" %>
-<%
-  # Linhas “em branco” quando não há dados (só pra parecer planilha)
-  rows = @rows.present? ? @rows : Array.new(12) { { entry: OpenStruct.new(date: nil, category: nil, description: nil), income: 0.to_d, expense: 0.to_d, balance: 0.to_d } }
-%>
+<% rows = @rows || [] %>
 
 <style>
+  /* ================================
+   * LAYOUT E TABELA
+   * ================================ */
   .sheet-wrap { height: calc(100vh - 140px); display:flex; flex-direction:column; gap:.5rem; }
   .sheet { border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; }
   .sheet-scroller { overflow:auto; height:100%; }
 
-  /* Tabela estilo planilha: pode ultrapassar e gerar scroll horizontal */
   .sheet-table {
     width: auto;
     min-width: 960px;
     border-collapse:separate; border-spacing:0; table-layout:fixed; font-size:14px;
   }
-
   .sheet-table thead th {
     position:sticky; top:0; background:#f1f5f9; z-index:2; font-weight:600; text-align:left; padding:10px 8px;
     border-bottom:1px solid #cbd5e1; border-right:1px solid #e2e8f0;
   }
   .sheet-table thead th:last-child { border-right:none; }
-
   .sheet-table tbody td {
     padding:8px; border-top:1px solid #e2e8f0; border-right:1px solid #f1f5f9; background:#fff;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle;
@@ -32,7 +29,9 @@
 
   .text-end { text-align:right; } .text-center { text-align:center; } .fw-semibold { font-weight:600; }
 
-  /* --- Cabeçalho redimensionável --- */
+  /* ================================
+   * REDIMENSIONAMENTO DE COLUNAS
+   * ================================ */
   .resizable { position:relative; }
   .resizer {
     position:absolute; top:0; right:-3px; width:8px; height:100%;
@@ -49,15 +48,74 @@
     border-radius:2px; opacity:.9;
   }
 
-  /* Botões */
+  /* ================================
+   * BOTÕES
+   * ================================ */
   .btn-xs { padding:4px 8px; border:1px solid #cbd5e1; background:#fff; border-radius:6px; font-size:12px; cursor:pointer; }
   .btn-xs:hover { background:#f8fafc; }
   .btn-primary { border-color:#bfdbfe; color:#1d4ed8; }
   .btn-secondary { color:#334155; }
-</style>
+  .btn { padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; cursor:pointer; }
+  .btn:hover { background:#f8fafc; }
 
-<style>
-  /* ===== Modal ===== */
+  /* estado de loading */
+  .btn.is-loading {
+    background: #334155;       /* mais escuro */
+    color: #fff;
+    border-color: #334155;
+    cursor: progress;
+    animation: btn-blink 1s linear infinite;
+  }
+
+  /* spinner opcional no texto */
+  .btn.is-loading::after {
+    content: "";
+    display: inline-block;
+    vertical-align: -2px;
+    width: 14px; height: 14px;
+    margin-left: 8px;
+    border: 2px solid currentColor;
+    border-right-color: transparent; /* “buraco” do spinner */
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+
+  /* desativado de verdade */
+  .btn:disabled {
+    pointer-events: none;
+    opacity: 0.95; /* mantém visível, mas evita clique */
+  }
+
+  /* piscar levinho */
+  @keyframes btn-blink {
+    0%, 100% { filter: brightness(1); }
+    50%      { filter: brightness(0.85); }
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* respeita preferências do usuário */
+  @media (prefers-reduced-motion: reduce) {
+    .btn.is-loading { animation: none; }
+    .btn.is-loading::after { animation: none; }
+  }
+
+  .icon-btn {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border:1px solid #cbd5e1; border-radius:6px;
+    background:#fff; cursor:pointer; text-decoration:none;
+    transition:background .15s, border-color .15s;
+    vertical-align:middle;
+  }
+  .icon-btn:hover { background:#f8fafc; border-color:#94a3b8; }
+  .icon-btn svg { width:16px; height:16px; }
+  .icon-btn.danger { border-color:#fecaca; }
+  .icon-btn.danger:hover { background:#fef2f2; border-color:#fca5a5; }
+  .icons-inline { display:flex; gap:6px; justify-content:center; }
+
+  /* ================================
+   * MODAL / OVERLAY
+   * ================================ */
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(15,23,42,.45);
     display: none; align-items: center; justify-content: center; z-index: 50;
@@ -69,21 +127,16 @@
   .modal-header { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:10px; }
   .modal-title { font-weight:600; }
   .modal-footer { padding: 12px 16px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; }
+  .modal-body { padding: 16px 22px; }
 
-  .modal-body { 
-    /* mais respiro nas laterais, especialmente à direita */
-    padding: 16px 22px; 
-  }
-
-  /* Seleção de tipo (Entrada / Saída / Investimento) */
   .type-switch { display:flex; gap:8px; flex-wrap:wrap; }
-  .pill {
-    padding:6px 10px; border:1px solid #cbd5e1; background:#fff; border-radius:999px; font-size:13px; cursor:pointer;
-  }
+  .pill { padding:6px 10px; border:1px solid #cbd5e1; background:#fff; border-radius:999px; font-size:13px; cursor:pointer; }
   .pill[data-type="income"].active  { border-color:#bbf7d0; background:#ecfccb; color:#166534; }
   .pill[data-type="expense"].active { border-color:#fecaca; background:#fee2e2; color:#7f1d1d; }
 
-  /* Grid do formulário: rótulos alinhados */
+  /* ================================
+   * FORM GRID
+   * ================================ */
   .form-grid {
     display:grid;
     grid-template-columns: 140px 1fr;
@@ -96,36 +149,26 @@
   .form-grid input[type="number"],
   .form-grid textarea {
     width: 100%;
-    box-sizing: border-box;        /* evita “estourar” a caixa */
+    box-sizing: border-box;
     padding:8px 10px;
     border:1px solid #cbd5e1;
-    border-radius:8px;             /* bordas arredondadas dos dois lados */
+    border-radius:8px;
     font-size:14px;
     line-height:1.2;
   }
-  /* aparência quando travamos o campo (investimento) */
   .form-grid input[readonly] {
-    background: #f8fafc;
-    color:#475569;
-    cursor: not-allowed;
+    background: #f8fafc; color:#475569; cursor: not-allowed;
   }
-
   .w-100 { width:100%; }
-  .btn { padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; cursor:pointer; }
-  .btn:hover { background:#f8fafc; }
-  .btn-primary { border-color:#bfdbfe; color:#1d4ed8; }
 </style>
 
 <div class="sheet-wrap">
   <div style="display:flex;justify-content:space-between;align-items:center;">
     <h1 class="h5" style="margin:0;">Lançamentos</h1>
-
-    <button id="open-startbox" class="btn-xs btn-primary" type="button" title="Iniciar Caixa">
-      Iniciar Caixa
-    </button>
+    <button id="open-startbox" class="btn-xs btn-primary" type="button" title="Iniciar Caixa">Iniciar Caixa</button>
   </div>
 
-  <%# ===== Modal com formulário inline ===== %>
+  <%# ========== MODAL: NOVO LANÇAMENTO ========== %>
   <div id="startbox" class="modal-backdrop" aria-hidden="true">
     <div class="modal">
       <div class="modal-header">
@@ -136,12 +179,9 @@
           <button type="button" class="pill" data-type="expense" data-preset="investment">Investimento</button>
         </div>
       </div>
-
       <div class="modal-body">
         <%= form_with model: Entry.new, url: entries_path, local: true, html: { id: "quick-entry-form" } do |f| %>
-          <%# Tipo travado via pills (income/expense) %>
           <%= f.hidden_field :kind, value: "income", id: "entry-kind" %>
-          <%# preset para investimento (opcional) %>
           <input type="hidden" name="preset" id="entry-preset" value="">
 
           <div class="form-grid">
@@ -154,8 +194,9 @@
             <label for="entry_description">Descrição</label>
             <%= f.text_field :description, placeholder: "Ex.: PIX cliente João / Fatura CPFL / Aporte XP", class: "w-100" %>
 
-            <label for="entry_amount">Valor</label>
-            <%= f.number_field :amount, step: "0.01", placeholder: "0,00", class: "w-100" %>
+            <label for="entry_amount_mask">Valor</label>
+            <input type="text" id="entry_amount_mask" class="w-100" inputmode="numeric" placeholder="0,00">
+            <%= f.hidden_field :amount, id: "entry_amount_real" %>
           </div>
 
           <div class="modal-footer">
@@ -167,17 +208,50 @@
     </div>
   </div>
 
+  <%# ========== MODAL: EDITAR LANÇAMENTO (PATCH via fetch) ========== %>
+  <div id="editbox" class="modal-backdrop" aria-hidden="true" style="display:none">
+    <div class="modal">
+      <div class="modal-header"><div class="modal-title">Editar lançamento</div></div>
+      <div class="modal-body">
+        <form id="edit-entry-form" action="#" data-turbo="false" onsubmit="return false;">
+          <input type="hidden" id="edit-id">
+          <input type="hidden" name="entry[amount]" id="edit-amount-real">
+
+          <div class="form-grid">
+            <label for="edit_date">Data</label>
+            <input type="date" id="edit_date" name="entry[date]" class="w-100">
+
+            <label for="edit_category">Categoria</label>
+            <input type="text" id="edit_category" name="entry[category]" class="w-100" placeholder="Ex.: Vendas, Energia…">
+
+            <label for="edit_description">Descrição</label>
+            <input type="text" id="edit_description" name="entry[description]" class="w-100" placeholder="Descreva…">
+
+            <label for="edit_amount_mask">Valor</label>
+            <input type="text" id="edit_amount_mask" class="w-100" inputmode="numeric" placeholder="0,00">
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" id="close-editbox" class="btn">Cancelar</button>
+            <button type="button" id="edit-save" class="btn btn-primary">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <%# ========== TABELA ========== %>
   <div class="sheet">
     <div class="sheet-scroller">
       <table class="sheet-table" id="entries-sheet">
         <colgroup>
-          <col data-col="0" style="width: 140px;">  <!-- Data -->
-          <col data-col="1" style="width: 220px;">  <!-- Categoria -->
-          <col data-col="2" style="width: 600px;">  <!-- Descrição (larga) -->
-          <col data-col="3" style="width: 180px;">  <!-- Entrada -->
-          <col data-col="4" style="width: 180px;">  <!-- Saída -->
-          <col data-col="5" style="width: 200px;">  <!-- Saldo -->
-          <col data-col="6" style="width: 180px;">  <!-- Ações -->
+          <col data-col="0" style="width: 140px;">
+          <col data-col="1" style="width: 220px;">
+          <col data-col="2" style="width: 600px;">
+          <col data-col="3" style="width: 180px;">
+          <col data-col="4" style="width: 180px;">
+          <col data-col="5" style="width: 200px;">
+          <col data-col="6" style="width: 180px;">
         </colgroup>
         <thead>
           <tr>
@@ -197,14 +271,39 @@
               <td><%= e.date ? e.date.strftime("%d/%m/%Y") : "" %></td>
               <td><%= e.category %></td>
               <td><%= e.description %></td>
-              <td class="text-end"><%= (row[:income].to_d > 0)  ? number_to_currency(row[:income],  unit: "R$ ") : "" %></td>
-              <td class="text-end"><%= (row[:expense].to_d > 0) ? number_to_currency(row[:expense], unit: "R$ ") : "" %></td>
-              <td class="text-end fw-semibold"><%= row[:balance].present? ? number_to_currency(row[:balance], unit: "R$ ") : "" %></td>
+              <td class="text-end"><%= (row[:income].to_d > 0)  ? number_to_currency(row[:income],  unit: "R$ ", :delimiter => ".", :separator => ",") : "" %></td>
+              <td class="text-end"><%= (row[:expense].to_d > 0) ? number_to_currency(row[:expense], unit: "R$ ", :delimiter => ".", :separator => ",") : "" %></td>
+              <td class="text-end fw-semibold"><%= row[:balance].present? ? number_to_currency(row[:balance], unit: "R$ ", :delimiter => ".", :separator => ",") : "" %></td>
               <td class="text-center">
                 <% if e&.id.present? %>
-                  <%= link_to "Ver", e, class: "btn-xs" %>
-                  <%= link_to "Editar", edit_entry_path(e), class: "btn-xs btn-primary" %>
-                  <%= link_to "Excluir", e, data: { turbo_method: :delete, turbo_confirm: "Remover este lançamento?" }, class: "btn-xs", style:"border-color:#fecaca;color:#b91c1c" %>
+                  <span class="icons-inline">
+                    <!-- EDITAR: abre modal -->
+                    <button type="button"
+                            class="icon-btn js-edit-entry"
+                            title="Editar"
+                            data-id="<%= e.id %>"
+                            data-date="<%= e.date %>"
+                            data-category="<%= h e.category %>"
+                            data-description="<%= h e.description %>"
+                            data-amount="<%= e.amount.present? ? ('%.2f' % e.amount) : '0.00' %>">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                      </svg>
+                    </button>
+
+                    <!-- EXCLUIR -->
+                    <%= link_to e, class: "icon-btn danger", title: "Excluir",
+                                data: { turbo_method: :delete, turbo_confirm: "Remover este lançamento?" } do %>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                        <path d="M10 11v6"></path>
+                        <path d="M14 11v6"></path>
+                        <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                    <% end %>
+                  </span>
                 <% end %>
               </td>
             </tr>
@@ -216,74 +315,85 @@
 </div>
 
 <script>
-  // Modal (abrir/fechar)
-  (function() {
-    const open = document.getElementById('open-startbox');
-    const close = document.getElementById('close-startbox');
-    const box = document.getElementById('startbox');
-    if (!open || !close || !box) return;
+  /* =========================================================
+   * UTIL: pegar CSRF do layout do Rails
+   * ======================================================= */
+  function getCsrf() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.content : null;
+  }
 
-    const show = () => { box.style.display = 'flex'; box.removeAttribute('aria-hidden'); }
-    const hide = () => { box.style.display = 'none'; box.setAttribute('aria-hidden', 'true'); }
+  /* =========================================================
+   * MÁSCARA DE DINHEIRO (centavos à direita)
+   * - Digite apenas números; exibição com vírgula
+   * - Hidden recebe ponto (ex: "10.00")
+   * - __setFromDecimal("1234.56") preenche com o salvo
+   * ======================================================= */
+  function attachMoneyMask(inputEl, hiddenRealEl) {
+    if (!inputEl) return;
 
-    open.addEventListener('click', show);
-    close.addEventListener('click', hide);
-    box.addEventListener('click', (e) => { if (e.target === box) hide(); });
+    const render = () => {
+      let digits = (inputEl.value || "").replace(/\D/g, "");
+      if (digits === "") digits = "0";
+      if (digits.length > 13) digits = digits.slice(0, 13); // limite de segurança
+      const num = parseInt(digits, 10);
+      const br = (num / 100).toFixed(2).replace(".", ",");
+      inputEl.value = br;
+      if (hiddenRealEl) hiddenRealEl.value = (num / 100).toFixed(2);
+    };
 
-    // troca tipo (Entrada/Saída/Investimento)
-    const kindInput   = document.getElementById('entry-kind');
-    const presetInput = document.getElementById('entry-preset');
-    const catInput    = document.getElementById('entry-category');
-
-    // estado inicial (garantia)
-    catInput.removeAttribute('readonly');
-
-    document.querySelectorAll('.pill').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        const type = btn.getAttribute('data-type');               // income | expense
-        const preset = btn.getAttribute('data-preset') || "";     // "" | "investment"
-        kindInput.value = type;
-        presetInput.value = preset;
-
-        if (preset === 'investment') {
-          // investimento = saída com categoria travada
-          catInput.value = "Investimento";
-          catInput.setAttribute('readonly', 'readonly');
-        } else {
-          catInput.removeAttribute('readonly');
-          if (catInput.value === "Investimento") {
-            catInput.value = "";
-          }
-        }
-      });
+    inputEl.addEventListener("keydown", (e) => {
+      if (
+        e.key === "Backspace" || e.key === "Delete" ||
+        e.key === "ArrowLeft" || e.key === "ArrowRight" ||
+        e.key === "Tab" || e.key === "Home" || e.key === "End" ||
+        e.ctrlKey || e.metaKey
+      ) return;
+      if (!/^\d$/.test(e.key)) e.preventDefault();
     });
-  })();
-</script>
 
-<script>
-  // Redimensionar colunas + salvar larguras
-  (function() {
-    const table = document.getElementById('entries-sheet');
+    inputEl.addEventListener("input", render);
+
+    inputEl.value = "0,00";
+    render();
+
+    inputEl.__setFromDecimal = function (dec) {
+      const asStr = String(dec ?? "0").replace(/[^\d]/g, "");
+      inputEl.value = asStr; // deixa só dígitos; render converte para 0,00
+      render();
+    };
+  }
+
+  /* =========================================================
+   * MODAL GENÉRICO (abrir/fechar)
+   * ======================================================= */
+  function openModal(backdropEl) {
+    backdropEl.style.display = "flex";
+    backdropEl.removeAttribute("aria-hidden");
+  }
+  function closeModal(backdropEl) {
+    backdropEl.style.display = "none";
+    backdropEl.setAttribute("aria-hidden", "true");
+  }
+
+  /* =========================================================
+   * REDIMENSIONAR COLUNAS + SALVAR EM localStorage
+   * ======================================================= */
+  function enableResizableColumns(tableId, storageKey) {
+    const table = document.getElementById(tableId);
     if (!table) return;
-
-    const storageKey = 'entries-sheet-colwidths';
     const cols = table.querySelectorAll('colgroup col');
 
-    // Restaura larguras salvas
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
       saved.forEach((w, idx) => { if (w) cols[idx].style.width = w; });
     } catch(e){}
 
-    const headerCells = table.querySelectorAll('thead th.resizable');
-    headerCells.forEach((th, index) => {
+    table.querySelectorAll('thead th.resizable').forEach((th, index) => {
       const handle = th.querySelector('.resizer');
       if (!handle) return;
-
       let startX, startWidth;
+
       handle.addEventListener('mousedown', (e) => {
         e.preventDefault();
         startX = e.pageX;
@@ -296,7 +406,6 @@
           const newWidth = Math.max(80, Math.round(startWidth + delta));
           if (col) col.style.width = newWidth + 'px';
         };
-
         const onUp = () => {
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
@@ -309,5 +418,169 @@
         document.addEventListener('mouseup', onUp);
       });
     });
+  }
+
+  /* =========================================================
+   * INICIALIZAÇÃO (IIFE)
+   * ======================================================= */
+  (function init() {
+
+    // Desativar botao de criar e atualizar (salvar) ao ser clicado
+    function setBusyButton(btn, label = "Salvando...") {
+      if (!btn) return;
+      // guarda texto original para restaurar depois
+      if (!btn.dataset.origText) btn.dataset.origText = btn.textContent;
+      btn.textContent = label;
+      btn.classList.add("is-loading");
+      btn.setAttribute("aria-busy", "true");
+      btn.setAttribute("disabled", "disabled"); // bloqueia clique
+    }
+
+    // Reativar o botao de salvar quando atualizado
+    function clearBusyButton(btn) {
+      if (!btn) return;
+      btn.classList.remove("is-loading");
+      btn.removeAttribute("aria-busy");
+      btn.removeAttribute("disabled");
+      if (btn.dataset.origText) btn.textContent = btn.dataset.origText;
+    }
+
+    // ----- Modal "Novo lançamento"
+    const startbox = document.getElementById('startbox');
+    const openStart = document.getElementById('open-startbox');
+    const closeStart = document.getElementById('close-startbox');
+
+    if (openStart && startbox) openStart.addEventListener('click', () => openModal(startbox));
+    if (closeStart && startbox) closeStart.addEventListener('click', () => closeModal(startbox));
+    if (startbox) startbox.addEventListener('click', (e) => { if (e.target === startbox) closeModal(startbox); });
+
+    // Troca tipo/preset do "Novo"
+    const kindInput   = document.getElementById('entry-kind');
+    const presetInput = document.getElementById('entry-preset');
+    const catInput    = document.getElementById('entry-category');
+    if (catInput) catInput.removeAttribute('readonly');
+
+    document.querySelectorAll('.pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const type = btn.getAttribute('data-type');           // income | expense
+        const preset = btn.getAttribute('data-preset') || ""; // "" | "investment"
+        if (kindInput) kindInput.value = type;
+        if (presetInput) presetInput.value = preset;
+
+        if (preset === 'investment') {
+          if (catInput) {
+            catInput.value = "Investimento";
+            catInput.setAttribute('readonly', 'readonly');
+          }
+        } else {
+          if (catInput) {
+            catInput.removeAttribute('readonly');
+            if (catInput.value === "Investimento") catInput.value = "";
+          }
+        }
+      });
+    });
+
+    // Máscara: NOVO
+    attachMoneyMask(
+      document.getElementById("entry_amount_mask"),
+      document.getElementById("entry_amount_real")
+    );
+
+    // Redimensionamento de colunas
+    enableResizableColumns('entries-sheet', 'entries-sheet-colwidths');
+
+    // ----- Modal "Editar"
+    const editbox   = document.getElementById("editbox");
+    const closeEdit = document.getElementById("close-editbox");
+    const formEdit  = document.getElementById("edit-entry-form");
+    const btnSave   = document.getElementById("edit-save");
+
+    const inDate       = document.getElementById("edit_date");
+    const inCategory   = document.getElementById("edit_category");
+    const inDesc       = document.getElementById("edit_description");
+    const inAmountMask = document.getElementById("edit_amount_mask");
+    const inAmountReal = document.getElementById("edit-amount-real");
+    const inId         = document.getElementById("edit-id");
+
+    if (closeEdit && editbox) closeEdit.addEventListener("click", () => closeModal(editbox));
+    if (editbox) editbox.addEventListener("click", (e) => { if (e.target === editbox) closeModal(editbox); });
+
+    // Máscara: EDITAR
+    attachMoneyMask(inAmountMask, inAmountReal);
+
+    // Abrir modal com dados do lápis
+    document.querySelectorAll(".js-edit-entry").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id          = btn.dataset.id;
+        const date        = btn.dataset.date || "";
+        const category    = btn.dataset.category || "";
+        const description = btn.dataset.description || "";
+        const amount      = btn.dataset.amount || "0.00"; // ponto + 2 casas
+
+        if (inId)        inId.value = id;
+        if (inDate)      inDate.value = date;
+        if (inCategory)  inCategory.value = category;
+        if (inDesc)      inDesc.value = description;
+
+        if (formEdit) formEdit.dataset.updateUrl = `/entries/${id}`;
+
+        if (inAmountMask && inAmountMask.__setFromDecimal) {
+          inAmountMask.__setFromDecimal(amount); // preenche visual com vírgula
+        }
+        if (inAmountReal) inAmountReal.value = amount;        // hidden com ponto
+
+        if (editbox) openModal(editbox);
+      });
+    });
+
+    // Salvar edição via fetch PATCH
+    let saving = false;
+    if (btnSave && formEdit) {
+      btnSave.addEventListener("click", async () => {
+        if (saving) return; // Se ja estiver salvando sai
+        saving = true; // Seta salvando para nao receber outro pedido durante execução
+        setBusyButton(btnSave); // <<< desativa, escurece e pisca
+
+        // Garante sync da máscara -> hidden
+        if (inAmountMask && inAmountReal) {
+          // "1.234,56" -> "1234.56"
+          inAmountReal.value = inAmountMask.value.replace(/\./g, "").replace(",", ".");
+        }
+
+        const url = formEdit.dataset.updateUrl;
+        if (!url) { alert("ID do lançamento não encontrado."); return; }
+
+        const body = new URLSearchParams(new FormData(formEdit));
+
+        try {
+          const resp = await fetch(url, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+              ...(getCsrf() ? {"X-CSRF-Token": getCsrf()} : {})
+            },
+            body: body.toString()
+          });
+
+          if ([200, 204, 302].includes(resp.status)) {
+            if (editbox) closeModal(editbox);
+            window.location.assign("/entries");
+          } else {
+            console.error("PATCH falhou:", await resp.text());
+            alert("Falha ao salvar. Verifique os campos.");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Erro de rede ao salvar.");
+        } finally {
+          clearBusyButton(btnSave); // Reabilitar botão apos execusão caso não tenha tido redirect
+          saving = false;
+        }
+      });
+    }
   })();
 </script>

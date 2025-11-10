@@ -3,14 +3,15 @@ class EntriesController < ApplicationController
   before_action :set_entry, only: %i[ show edit update destroy ]
 
   def index
-    scope = current_user.entries.order(:date, :id)
+    entries = current_user.entries.order(date: :asc, created_at: :asc)
 
-    @running_balance = 0.to_d
-    @rows = scope.map do |e|
-      income  = (e.respond_to?(:income?)  && e.income?)  ? e.amount.to_d : 0.to_d
-      expense = (e.respond_to?(:expense?) && e.expense?) ? e.amount.to_d : 0.to_d
-      @running_balance += (income - expense)
-      { entry: e, income: income, expense: expense, balance: @running_balance }
+    running = 0.to_d
+    @rows = entries.map do |e|
+      income  = e.kind == "income"  ? e.amount : 0.to_d
+      expense = e.kind == "expense" ? e.amount : 0.to_d
+      running += income - expense
+
+      { entry: e, income: income, expense: expense, balance: running }
     end
   end
 
@@ -40,9 +41,10 @@ class EntriesController < ApplicationController
     end
   end
 
+  # Preferido para navegação pós-UPDATE
   def update
     if @entry.update(entry_params)
-      redirect_to entries_path, notice: "Lançamento atualizado."
+      redirect_to entries_path, status: :see_other  # 303 → próximo é GET
     else
       render :edit, status: :unprocessable_entity
     end
