@@ -10,32 +10,228 @@
 
     <%= yield :head %>
 
-    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
-    <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
-
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
 
-    <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
+
+    <style>
+      :root {
+        --bg-top: #f8fafc;      /* topo claro */
+        --bg-mid: #eef2f7;      /* meio levemente mais escuro */
+        --bg-bottom: #e7ecf3;   /* base */
+        --brand-500: #2563eb;   /* azul principal */
+        --brand-600: #1d4ed8;
+        --text-dark: #0f172a;
+        --text-soft: #475569;
+        --stroke: #e2e8f0;
+      }
+
+      html, body {
+        height: 100%;
+        margin: 0;
+        color: var(--text-dark);
+        font-family: system-ui, sans-serif;
+        background: linear-gradient(180deg, var(--bg-top), var(--bg-mid) 35%, var(--bg-bottom));
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      main {
+        flex: 1;
+        padding: 20px 0;
+      }
+
+      /* HEADER */
+      nav.app-nav {
+        background: linear-gradient(180deg, #ffffff, #f9fbfd);
+        border-bottom: 1px solid var(--stroke);
+        padding: 14px 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .brand a {
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--brand-600);
+        text-decoration: none;
+      }
+
+      .brand a:hover {
+        text-decoration: underline;
+      }
+
+      .nav-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .nav-email {
+        color: var(--text-soft);
+        font-size: 14px;
+        margin-right: 4px;
+      }
+
+      .btn {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn:hover {
+        background: #f1f5f9;
+      }
+
+      .btn-primary {
+        background: linear-gradient(180deg, var(--brand-500), var(--brand-600));
+        color: #fff;
+        border: none;
+      }
+
+      .btn-outline {
+        color: var(--brand-600);
+        background: #fff;
+        border: 1px solid #bfd2ff;
+      }
+
+      /* FOOTER */
+      footer {
+        background: linear-gradient(180deg, #ffffff, #f9fbfd);
+        border-top: 1px solid var(--stroke);
+        color: var(--text-soft);
+        text-align: center;
+        padding: 18px 10px;
+      }
+
+      footer .footer-inner {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .footer-links {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .footer-links a {
+        color: var(--brand-600);
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .footer-links a:hover {
+        text-decoration: underline;
+      }
+
+      .btn.is-loading {
+        background: #334155;
+        color: #fff;
+        border-color: #334155;
+        cursor: progress;
+        animation: btn-blink 1s linear infinite;
+      }
+
+      .btn.is-loading::after {
+        content: "";
+        display: inline-block;
+        width: 14px; height: 14px;
+        margin-left: 8px;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
+      }
+
+      @keyframes btn-blink {
+        0%, 100% { filter: brightness(1); }
+        50%      { filter: brightness(0.85); }
+      }
+
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+
   </head>
 
   <body>
-    <nav style="padding:10px; background:#0d6efd; color:#fff; display:flex; gap:12px; align-items:center;">
-      <strong><%= link_to "Fluxo de Caixa", root_path, style: "color:#fff; text-decoration:none;" %></strong>
-      <div style="margin-left:auto;">
+    <nav class="app-nav">
+      <div class="brand">
+        <%= link_to "Fluxo de Caixa", root_path %>
+      </div>
+      <div class="nav-actions">
         <% if user_signed_in? %>
-          <span style="margin-right:8px;"><%= current_user.email %></span>
-          <%= link_to "Lançamentos", entries_path, class: "btn btn-light btn-sm", style: "margin-right:6px;" %>
-          <%= link_to "Sair", destroy_user_session_path, data: { turbo_method: :delete }, class: "btn btn-outline-light btn-sm" %>
+          <span class="nav-email"><%= current_user.email %></span>
+          <%= button_to "Lançamentos", entries_path, class: "btn btn-outline" %>
+          <%= button_to "Sair",
+                destroy_user_session_path,
+                method: :delete,
+                form: { id: "logout-form", style: "display:inline;" },
+                class: "btn btn-primary" %>
         <% else %>
-          <%= link_to "Entrar", new_user_session_path, class: "btn btn-outline-light btn-sm", style: "margin-right:6px;" %>
-          <%= link_to "Criar conta", new_user_registration_path, class: "btn btn-light btn-sm" %>
+          <%= link_to "Entrar", new_user_session_path, class: "btn btn-outline" %>
+          <%= link_to "Criar conta", new_user_registration_path, class: "btn btn-primary" %>
         <% end %>
       </div>
     </nav>
-    <%= yield %>
+
+    <main>
+      <%= yield %>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div class="footer-links">
+          <a href="#">Termos de Uso</a>
+          <a href="#">Política de Privacidade</a>
+          <a href="#">Contato</a>
+        </div>
+        <small>
+          © <%= Time.current.year %> Fluxo de Caixa App — Todos os direitos reservados.<br>
+          Desenvolvido por <a href="https://cardinigro.com.br" target="_blank" rel="noopener noreferrer">Lucas Cardi</a>.
+        </small>
+      </div>
+    </footer>
+
+    <script>
+      document.addEventListener('submit', function (e) {
+        const f = e.target;
+        if (f && f.id === 'logout-form') {
+          e.preventDefault(); // evita envio imediato
+
+          const btn = f.querySelector('input[type="submit"], button[type="submit"]');
+          if (btn) {
+            // aplica estilo "carregando"
+            btn.classList.add('is-loading');
+            btn.disabled = true;
+            btn.value = 'Saindo...';
+          }
+
+          if (confirm('Deseja sair?')) {
+            f.submit(); // envia de fato
+          } else {
+            // se cancelou, remove o loading
+            if (btn) {
+              btn.classList.remove('is-loading');
+              btn.disabled = false;
+              btn.value = 'Sair';
+            }
+          }
+        }
+      });
+    </script>
   </body>
 </html>

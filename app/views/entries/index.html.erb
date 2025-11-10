@@ -7,7 +7,13 @@
    * LAYOUT E TABELA
    * ================================ */
   .sheet-wrap { height: calc(100vh - 140px); display:flex; flex-direction:column; gap:.5rem; }
-  .sheet { border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; }
+  .sheet {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+  }
   .sheet-scroller { overflow:auto; height:100%; }
 
   .sheet-table {
@@ -67,8 +73,8 @@
    * ================================ */
   .btn-xs { padding:4px 8px; border:1px solid #cbd5e1; background:#fff; border-radius:6px; font-size:12px; cursor:pointer; }
   .btn-xs:hover { background:#f8fafc; }
-  .btn-primary { border-color:#bfdbfe; color:#1d4ed8; }
-  .btn-secondary { color:#334155; }
+  .btn-primary { border-color:#bfdbfe; color:#1d4ed8; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04); }
+  .btn-secondary { color:#334155; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04); }
   .btn { padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; cursor:pointer; }
   .btn:hover { background:#f8fafc; }
 
@@ -168,6 +174,10 @@
   .text-danger { color:#dc2626; }
   .text-success { color:#16a34a; }
 
+  /* opcional
+  .summary-filters { margin-bottom:14px; display:flex; gap:10px; align-items:end; flex-wrap:wrap; }
+  */
+
   /* ================================
    * FORM GRID
    * ================================ */
@@ -212,7 +222,7 @@
     <button id="toolbar-slot-3" class="btn btn-ghost" type="button" disabled>Em breve</button>
 
     <!-- 4) Lucro/Prejuízo (direita) -->
-    <button id="open-summarybox" class="btn btn-secondary" type="button" title="Resumo Financeiro">Lucro/Prejuízo</button>
+    <button id="open-summarybox" class="btn btn-primary" type="button" title="Resumo Financeiro">Lucro/Prejuízo</button>
   </div>
 
   <%# ========== MODAL: NOVO LANÇAMENTO ========== %>
@@ -296,6 +306,23 @@
       </div>
 
       <div class="modal-body">
+        <div class="summary-filters">
+          <label style="display:flex; gap:8px; align-items:center; margin-right:8px;">
+            <input type="checkbox" id="sum-all" />
+            <span>Ver todos</span>
+          </label>
+
+          <div id="sum-range-fields" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label for="sum-start" style="font-size:13px; color:#334155;">Data início</label>
+              <input type="date" id="sum-start" class="w-100" />
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label for="sum-end" style="font-size:13px; color:#334155;">Data final</label>
+              <input type="date" id="sum-end" class="w-100" />
+            </div>
+          </div>
+        </div>
         <div class="summary-card">
           <div class="summary-row">
             <span>Total Entradas:</span>
@@ -718,6 +745,57 @@
     const openSummary  = document.getElementById('open-summarybox');
     const closeSummary = document.getElementById('close-summarybox');
     const closeSummary2= document.getElementById('close-summarybox-2');
+    // elementos do filtro
+    const chkAll   = document.getElementById('sum-all');
+    const boxRange = document.getElementById('sum-range-fields');
+    const inStart  = document.getElementById('sum-start');
+    const inEnd    = document.getElementById('sum-end');
+    const btnApply = document.getElementById('sum-apply');
+
+    // Função para summary com filtro
+    function applySummary() {
+      const all = !!(chkAll && chkAll.checked);
+      let start = null, end = null;
+
+      if (!all) {
+        start = fromISODate(inStart?.value || "");
+        end   = fromISODate(inEnd?.value || "");
+      }
+      renderSummaryFromTable({ all, start, end });
+    }
+
+    function toggleRangeVisibility() {
+      if (!boxRange || !chkAll) return;
+      boxRange.style.display = chkAll.checked ? 'none' : 'flex';
+    }
+
+    // abrir o modal já preenchendo datas padrão
+    if (openSummary && summarybox) {
+      openSummary.addEventListener('click', () => {
+        // default: tentar preencher com min/max da tabela
+        const { min, max } = getDateBoundsFromTable();
+
+        if (inStart) inStart.value = toISODate(min || new Date());
+        if (inEnd)   inEnd.value   = toISODate(max || new Date());
+
+        // default: desmarcado (usa intervalo)
+        if (chkAll) chkAll.checked = false;
+        toggleRangeVisibility();
+
+        applySummary();
+        openModal(summarybox);
+      });
+    }
+
+    // listeners do filtro
+    if (chkAll) chkAll.addEventListener('change', () => {
+      toggleRangeVisibility();
+      applySummary();
+    });
+    if (btnApply) btnApply.addEventListener('click', applySummary);
+    // também recalcula ao trocar datas direto
+    if (inStart) inStart.addEventListener('change', applySummary);
+    if (inEnd)   inEnd.addEventListener('change', applySummary);
 
     // ===== Helpers BRL (substitua os stubs por isso)
     function parseBRL(str) {
@@ -735,18 +813,68 @@
       return (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     }
 
-    function renderSummaryFromTable() {
+    // ===== Helpers de DATA (DD/MM/YYYY <-> Date <-> YYYY-MM-DD)
+    function parseDateCellBR(str) {
+      // "dd/mm/aaaa" -> Date
+      if (!str) return null;
+      const m = String(str).trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (!m) return null;
+      const [_, dd, mm, yyyy] = m;
+      const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+      return isNaN(d.getTime()) ? null : d;
+    }
+    function toISODate(d) {
+      if (!(d instanceof Date) || isNaN(d)) return "";
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+    function fromISODate(iso) {
+      if (!iso) return null;
+      const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return null;
+      const [_, yyyy, mm, dd] = m;
+      const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+      return isNaN(d.getTime()) ? null : d;
+    }
+    // pega menor/maior data da tabela
+    function getDateBoundsFromTable() {
+      const tbody = document.querySelector('#entries-sheet tbody');
+      if (!tbody) return { min: null, max: null };
+      let min = null, max = null;
+      tbody.querySelectorAll('tr').forEach(tr => {
+        const dateText = tr.querySelector('td:nth-child(1)')?.textContent?.trim() || "";
+        const d = parseDateCellBR(dateText);
+        if (!d) return;
+        if (!min || d < min) min = d;
+        if (!max || d > max) max = d;
+      });
+      return { min, max };
+    }
+
+    function renderSummaryFromTable(opts = {}) {
       const tbody = document.querySelector('#entries-sheet tbody');
       if (!tbody) return;
+
+      const { all = false, start = null, end = null } = opts;
 
       let totalIncome = 0;
       let totalExpense = 0;
       let totalInvest = 0;
 
-      // Colunas: 0 Data | 1 Categoria | 2 Descrição | 3 Entrada | 4 Saída | 5 Saldo | 6 Ações
       tbody.querySelectorAll('tr').forEach(tr => {
         const tds = tr.querySelectorAll('td');
         if (tds.length < 5) return;
+
+        // FILTRO POR DATA
+        if (!all) {
+          const dateText = (tds[0]?.textContent || '').trim(); // coluna 0 = Data "dd/mm/aaaa"
+          const d = parseDateCellBR(dateText);
+          if (!d) return;
+          if (start && d < start) return;
+          if (end && d > end) return;
+        }
 
         const category = (tds[1]?.textContent || '').trim();
         const income   = parseBRL(tds[3]?.textContent || '');
@@ -755,7 +883,7 @@
         totalIncome  += income;
         totalExpense += expense;
 
-        // Regra simples: toda linha com categoria "Investimento" soma em investimento
+        // regra simples p/ investimento
         if (/^investimento$/i.test(category)) {
           totalInvest += income > 0 ? income : expense;
         }
