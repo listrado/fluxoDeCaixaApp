@@ -29,6 +29,20 @@
 
   .text-end { text-align:right; } .text-center { text-align:center; } .fw-semibold { font-weight:600; }
 
+  /* ===== TOOLBAR 4 COLUNAS ===== */
+  .toolbar-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    align-items: stretch;
+  }
+  .toolbar-grid .btn,
+  .toolbar-grid .btn-xs {
+    width: 100%;
+    height: 42px;
+    font-weight: 600;
+  }
+
   /* ================================
    * REDIMENSIONAMENTO DE COLUNAS
    * ================================ */
@@ -100,6 +114,10 @@
     .btn.is-loading::after { animation: none; }
   }
 
+  /* variantes visuais */
+  .btn-ghost { background:#fff; color:#334155; border-color:#cbd5e1; }
+  .btn-ghost[disabled] { opacity:.6; cursor:not-allowed; }
+
   .icon-btn {
     display:inline-flex; align-items:center; justify-content:center;
     width:28px; height:28px; border:1px solid #cbd5e1; border-radius:6px;
@@ -134,6 +152,22 @@
   .pill[data-type="income"].active  { border-color:#bbf7d0; background:#ecfccb; color:#166534; }
   .pill[data-type="expense"].active { border-color:#fecaca; background:#fee2e2; color:#7f1d1d; }
 
+  /* ===== RESUMO (modal) ===== */
+  .summary-card {
+    background:#f8fafc;
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+    padding:16px;
+  }
+  .summary-row {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 0; border-bottom:1px solid #e2e8f0;
+  }
+  .summary-row:last-child { border-bottom:none; }
+  .summary-title { font-weight:700; font-size:18px; margin-bottom:12px; }
+  .text-danger { color:#dc2626; }
+  .text-success { color:#16a34a; }
+
   /* ================================
    * FORM GRID
    * ================================ */
@@ -163,9 +197,22 @@
 </style>
 
 <div class="sheet-wrap">
-  <div style="display:flex;justify-content:space-between;align-items:center;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
     <h1 class="h5" style="margin:0;">Lançamentos</h1>
-    <button id="open-startbox" class="btn-xs btn-primary" type="button" title="Iniciar Caixa">Iniciar Caixa</button>
+  </div>
+
+  <div class="toolbar-grid" style="margin-bottom:10px;">
+    <!-- 1) Iniciar Caixa (esquerda) -->
+    <button id="open-startbox" class="btn btn-primary" type="button" title="Iniciar Caixa">Iniciar Caixa</button>
+
+    <!-- 2) Slot futuro -->
+    <button id="toolbar-slot-2" class="btn btn-ghost" type="button" disabled>Em breve</button>
+
+    <!-- 3) Slot futuro -->
+    <button id="toolbar-slot-3" class="btn btn-ghost" type="button" disabled>Em breve</button>
+
+    <!-- 4) Lucro/Prejuízo (direita) -->
+    <button id="open-summarybox" class="btn btn-secondary" type="button" title="Resumo Financeiro">Lucro/Prejuízo</button>
   </div>
 
   <%# ========== MODAL: NOVO LANÇAMENTO ========== %>
@@ -240,6 +287,64 @@
     </div>
   </div>
 
+  <%# ========== MODAL: LUCRO/PREJUÍZO ========== %>
+  <div id="summarybox" class="modal-backdrop" aria-hidden="true" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Resumo Financeiro</div>
+        <button type="button" id="close-summarybox" class="icon-btn" aria-label="Fechar">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="summary-card">
+          <div class="summary-row">
+            <span>Total Entradas:</span>
+            <span id="sum-income">R$ 0,00</span>
+          </div>
+          <div class="summary-row">
+            <span>Total Saídas:</span>
+            <span id="sum-expense">R$ 0,00</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-title">Lucro/Prejuízo:</span>
+            <span id="sum-profit" class="text-danger">R$ 0,00</span>
+          </div>
+          <div class="summary-row">
+            <span>Total Investimento:</span>
+            <span id="sum-invest">R$ 0,00</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="close-summarybox-2" class="btn">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <%# ============= MODAL: Deletar ============= %>
+  <div id="delbox" class="modal-backdrop" aria-hidden="true" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Confirmar exclusão</div>
+        <button type="button" id="close-delbox" class="icon-btn" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="summary-card">
+          <div class="summary-title">Você tem certeza que deseja excluir este lançamento?</div>
+          <div class="summary-row"><span>Data</span>        <span id="del-date">–</span></div>
+          <div class="summary-row"><span>Categoria</span>   <span id="del-category">–</span></div>
+          <div class="summary-row"><span>Descrição</span>   <span id="del-description">–</span></div>
+          <div class="summary-row"><span>Valor</span>       <span id="del-amount">R$ 0,00</span></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between">
+        <button type="button" id="del-no"  class="btn" style="border-color:#fecaca;color:#7f1d1d;">Não</button>
+        <button type="button" id="del-yes" class="btn" style="border-color:#bbf7d0;color:#166534;">Sim</button>
+      </div>
+    </div>          <!-- fecha .modal -->
+  </div>            <!-- ✅ fecha #delbox -->
+
   <%# ========== TABELA ========== %>
   <div class="sheet">
     <div class="sheet-scroller">
@@ -293,8 +398,15 @@
                     </button>
 
                     <!-- EXCLUIR -->
-                    <%= link_to e, class: "icon-btn danger", title: "Excluir",
-                                data: { turbo_method: :delete, turbo_confirm: "Remover este lançamento?" } do %>
+                    <button type="button"
+                            class="icon-btn danger js-del-entry"
+                            title="Excluir"
+                            data-id="<%= e.id %>"
+                            data-url="<%= entry_path(e) %>"
+                            data-date="<%= e.date %>"
+                            data-category="<%= h e.category %>"
+                            data-description="<%= h e.description %>"
+                            data-amount="<%= e.amount.present? ? ('%.2f' % e.amount) : '0.00' %>">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
@@ -302,7 +414,7 @@
                         <path d="M14 11v6"></path>
                         <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
                       </svg>
-                    <% end %>
+                    </button>
                   </span>
                 <% end %>
               </td>
@@ -336,10 +448,18 @@
       let digits = (inputEl.value || "").replace(/\D/g, "");
       if (digits === "") digits = "0";
       if (digits.length > 13) digits = digits.slice(0, 13); // limite de segurança
+
       const num = parseInt(digits, 10);
-      const br = (num / 100).toFixed(2).replace(".", ",");
+      const safeNum = isNaN(num) ? 0 : num;
+
+      const br = (safeNum / 100)
+        .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
       inputEl.value = br;
-      if (hiddenRealEl) hiddenRealEl.value = (num / 100).toFixed(2);
+
+      if (hiddenRealEl) {
+        hiddenRealEl.value = (safeNum / 100).toFixed(2);
+      }
     };
 
     inputEl.addEventListener("keydown", (e) => {
@@ -425,7 +545,7 @@
    * ======================================================= */
   (function init() {
 
-    // Desativar botao de criar e atualizar (salvar) ao ser clicado
+    // Desativar botão ao ser clicado
     function setBusyButton(btn, label = "Salvando...") {
       if (!btn) return;
       // guarda texto original para restaurar depois
@@ -436,13 +556,93 @@
       btn.setAttribute("disabled", "disabled"); // bloqueia clique
     }
 
-    // Reativar o botao de salvar quando atualizado
+    // Reativar o botão quando atualizado
     function clearBusyButton(btn) {
       if (!btn) return;
       btn.classList.remove("is-loading");
       btn.removeAttribute("aria-busy");
       btn.removeAttribute("disabled");
       if (btn.dataset.origText) btn.textContent = btn.dataset.origText;
+    }
+
+    // ----- Modal "Excluir"
+    const delbox   = document.getElementById('delbox');
+    const closeDel = document.getElementById('close-delbox');
+    const btnNo    = document.getElementById('del-no');
+    const btnYes   = document.getElementById('del-yes');
+
+    const elDelDate = document.getElementById('del-date');
+    const elDelCat  = document.getElementById('del-category');
+    const elDelDesc = document.getElementById('del-description');
+    const elDelAmt  = document.getElementById('del-amount');
+
+    let delTargetId = null;
+    let delTargetRow = null;
+
+    function formatBRL(n) {
+      return (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    let delTargetUrl = null;
+
+    // abrir modal ao clicar no ícone de lixeira
+    document.querySelectorAll('.js-del-entry').forEach(btn => {
+      btn.addEventListener('click', () => {
+        delTargetUrl = btn.dataset.url || (btn.dataset.id ? `/entries/${btn.dataset.id}` : null);
+        delTargetId  = btn.dataset.id;
+        // guarda a <tr> para remover da DOM sem reload (se quiser)
+        delTargetRow = btn.closest('tr');
+
+        elDelDate.textContent = btn.dataset.date || '–';
+        elDelCat.textContent  = btn.dataset.category || '–';
+        elDelDesc.textContent = btn.dataset.description || '–';
+        elDelAmt.textContent  = formatBRL(btn.dataset.amount || '0');
+
+        openModal(delbox);
+      });
+    });
+
+    if (closeDel) closeDel.addEventListener('click', () => closeModal(delbox));
+    if (btnNo)    btnNo.addEventListener('click', () => closeModal(delbox));
+    if (delbox)   delbox.addEventListener('click', (e) => { if (e.target === delbox) closeModal(delbox); });
+
+    // confirmar exclusão (loading no botão "Sim")
+    if (btnYes) {
+      btnYes.addEventListener('click', async () => {
+        if (!delTargetId) { closeModal(delbox); return; }
+
+        setBusyButton(btnYes, 'Excluindo...');
+
+        try {
+          const resp = await fetch(`/entries/${delTargetId}`, {
+            method: 'DELETE',
+            headers: {
+              'Accept': 'text/html,application/json',
+              ...(getCsrf() ? {'X-CSRF-Token': getCsrf()} : {})
+            }
+          });
+
+          if ([200, 204, 302].includes(resp.status)) {
+            // opção A) remove a linha sem recarregar:
+            if (delTargetRow) delTargetRow.remove();
+
+            // opção B) recarrega lista (garante saldo recalculado no servidor):
+            // window.location.assign('/entries');
+
+            closeModal(delbox);
+          } else {
+            console.error('DELETE falhou:', await resp.text());
+            alert('Falha ao excluir.');
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Erro de rede ao excluir.');
+        } finally {
+          clearBusyButton(btnYes);
+          delTargetId = null;
+          delTargetRow = null;
+        }
+      });
     }
 
     // ----- Modal "Novo lançamento"
@@ -513,6 +713,82 @@
       });
     }
 
+    // ----- Modal "Lucro/Prejuízo"
+    const summarybox   = document.getElementById('summarybox');
+    const openSummary  = document.getElementById('open-summarybox');
+    const closeSummary = document.getElementById('close-summarybox');
+    const closeSummary2= document.getElementById('close-summarybox-2');
+
+    // ===== Helpers BRL (substitua os stubs por isso)
+    function parseBRL(str) {
+      if (!str) return 0;
+      // remove "R$", espaços normais e NBSP, pontos de milhar; troca vírgula por ponto
+      const s = String(str)
+        .replace(/R\$\s?/g, '')
+        .replace(/[\s\u00A0]/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+      const n = Number(s);
+      return isNaN(n) ? 0 : n;
+    }
+    function formatBRL(n) {
+      return (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    function renderSummaryFromTable() {
+      const tbody = document.querySelector('#entries-sheet tbody');
+      if (!tbody) return;
+
+      let totalIncome = 0;
+      let totalExpense = 0;
+      let totalInvest = 0;
+
+      // Colunas: 0 Data | 1 Categoria | 2 Descrição | 3 Entrada | 4 Saída | 5 Saldo | 6 Ações
+      tbody.querySelectorAll('tr').forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length < 5) return;
+
+        const category = (tds[1]?.textContent || '').trim();
+        const income   = parseBRL(tds[3]?.textContent || '');
+        const expense  = parseBRL(tds[4]?.textContent || '');
+
+        totalIncome  += income;
+        totalExpense += expense;
+
+        // Regra simples: toda linha com categoria "Investimento" soma em investimento
+        if (/^investimento$/i.test(category)) {
+          totalInvest += income > 0 ? income : expense;
+        }
+      });
+
+      const profit = totalIncome - totalExpense;
+
+      // Atualiza UI
+      const elIncome  = document.getElementById('sum-income');
+      const elExpense = document.getElementById('sum-expense');
+      const elProfit  = document.getElementById('sum-profit');
+      const elInvest  = document.getElementById('sum-invest');
+
+      if (elIncome)  elIncome.textContent  = formatBRL(totalIncome);
+      if (elExpense) elExpense.textContent = formatBRL(totalExpense);
+      if (elInvest)  elInvest.textContent  = formatBRL(totalInvest);
+
+      if (elProfit) {
+        elProfit.textContent = formatBRL(profit);
+        elProfit.classList.toggle('text-danger', profit < 0);
+        elProfit.classList.toggle('text-success', profit >= 0);
+      }
+    }
+
+    if (openSummary && summarybox) {
+      openSummary.addEventListener('click', () => {
+        renderSummaryFromTable();
+        openModal(summarybox);
+      });
+    }
+    if (closeSummary && summarybox)  closeSummary.addEventListener('click', () => closeModal(summarybox));
+    if (closeSummary2 && summarybox) closeSummary2.addEventListener('click', () => closeModal(summarybox));
+    if (summarybox) summarybox.addEventListener('click', (e) => { if (e.target === summarybox) closeModal(summarybox); });
 
     // ----- Modal "Editar"
     const editbox   = document.getElementById("editbox");

@@ -52,7 +52,14 @@ class EntriesController < ApplicationController
 
   def destroy
     @entry.destroy
-    redirect_to entries_url, notice: "Lançamento removido."
+
+    # Se vier de XHR/Fetch pedindo JSON, devolve 204 (sem body)
+    if request.format.json? || request.headers['Accept'].to_s.include?('application/json')
+      head :no_content
+    else
+      # Navegação normal do navegador → redireciona (303 é o ideal pós-DELETE)
+      redirect_to entries_url, notice: "Lançamento removido.", status: :see_other
+    end
   end
 
   private
