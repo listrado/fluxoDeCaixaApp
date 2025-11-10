@@ -493,6 +493,27 @@
     // Redimensionamento de colunas
     enableResizableColumns('entries-sheet', 'entries-sheet-colwidths');
 
+    // ----- "Novo lançamento" (create)
+    const formNew = document.getElementById('quick-entry-form');
+    const btnNew  = formNew?.querySelector('input[type="submit"], button[type="submit"]');
+    let savingNew = false;
+
+    if (formNew && btnNew) {
+      formNew.addEventListener('submit', (e) => {
+        if (savingNew) { e.preventDefault(); return; }
+        savingNew = true;
+
+        // garante sync da máscara -> hidden antes de enviar
+        const mask = document.getElementById('entry_amount_mask');
+        const real = document.getElementById('entry_amount_real');
+        if (mask && real) real.value = mask.value.replace(/\./g, '').replace(',', '.');
+
+        setBusyButton(btnNew, 'Salvando...'); // fica escuro + piscando
+        // não precisa limpar: a página vai navegar após o POST
+      });
+    }
+
+
     // ----- Modal "Editar"
     const editbox   = document.getElementById("editbox");
     const closeEdit = document.getElementById("close-editbox");
