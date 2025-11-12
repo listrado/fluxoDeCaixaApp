@@ -25,7 +25,7 @@ default: &default
 
 development:
     <<: *default
-    url: <%= ENV.fetch("DATABASE_URL") %>
+    database: fluxo_de_caixa_app_development
 
     # The specified database role being used to connect to PostgreSQL.
     # To create additional roles in PostgreSQL see `$ createuser --help`.
