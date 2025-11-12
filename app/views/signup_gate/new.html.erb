@@ -1,0 +1,48 @@
+<div class="auth-wrapper-non-flex">
+ <h1 class="auth-title-out">Acessar Cadastro</h1>
+
+  <div class="auth-card">
+    <% if flash.alert.present? %>
+      <div class="error-banner"><%= flash.alert %></div>
+    <% end %>
+    <% if flash.notice.present? %>
+      <div class="notice-banner"><%= flash.notice %></div>
+    <% end %>
+
+    <%= form_with url: signup_gate_path, method: :post, local: true do |f| %>
+      <div class="form-row">
+        <label>Senha de Convite</label>
+        <div class="input-col">
+          <%= f.text_field :invite, name: :invite, class: "auth-input", required: true, autofocus: true %>
+          <small class="field-error"></small>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <span></span>
+        <%= f.submit "Validar e Continuar",
+              class: "btn-green js-loading-btn",
+              data: { disable_with: "Validando..." } %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<script>
+  function attachLoadingHandlers() {
+    document.querySelectorAll("form").forEach(form => {
+      form.addEventListener("submit", () => {
+        const btn = form.querySelector(".js-loading-btn");
+        if (btn && !btn.classList.contains("btn-loading")) {
+          btn.classList.add("btn-loading");
+          btn.disabled = true;
+          // se você já tem CSS que troca o texto com .btn-loading, ok.
+          // se não tiver, o data-disable-with já mostra "Validando..."
+        }
+      });
+    });
+  }
+
+  document.addEventListener("turbo:load", attachLoadingHandlers);
+  document.addEventListener("DOMContentLoaded", attachLoadingHandlers);
+</script>

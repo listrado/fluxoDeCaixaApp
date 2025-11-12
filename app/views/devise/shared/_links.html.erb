@@ -1,0 +1,45 @@
+<%- if controller_name != 'sessions' %>
+  <%= link_to "Log in", new_session_path(resource_name) %><br />
+<% end %>
+
+<%- if devise_mapping.registerable? && controller_name != 'registrations' %>
+  <%= link_to "Sign up",
+              new_signup_gate_path,
+              class: "link-purple",
+              data: { role: "signup-link" } %><br />
+<% end %>
+
+<%- if devise_mapping.recoverable? && controller_name != 'passwords' && controller_name != 'registrations' %>
+  <%= link_to "Forgot your password?", new_password_path(resource_name) %><br />
+<% end %>
+
+<%- if devise_mapping.confirmable? && controller_name != 'confirmations' %>
+  <%= link_to "Didn't receive confirmation instructions?", new_confirmation_path(resource_name) %><br />
+<% end %>
+
+<%- if devise_mapping.lockable? && resource_class.unlock_strategy_enabled?(:email) && controller_name != 'unlocks' %>
+  <%= link_to "Didn't receive unlock instructions?", new_unlock_path(resource_name) %><br />
+<% end %>
+
+<%- if devise_mapping.omniauthable? %>
+  <%- resource_class.omniauth_providers.each do |provider| %>
+    <%= button_to "Sign in with #{OmniAuth::Utils.camelize(provider)}", omniauth_authorize_path(resource_name, provider), data: { turbo: false } %><br />
+  <% end %>
+<% end %>
+
+
+<script>
+  function wireSignupLinkPurpleHold() {
+    const signupLink = document.querySelector('a[data-role="signup-link"]');
+    if (!signupLink) return;
+
+    signupLink.addEventListener("click", () => {
+      // fixa o roxo “clicado” até trocar de página
+      signupLink.style.color = "#5120b8"; // mesmo tom do :active que você já usa
+      signupLink.setAttribute("aria-busy", "true");
+    });
+  }
+
+  document.addEventListener("turbo:load", wireSignupLinkPurpleHold);
+  document.addEventListener("DOMContentLoaded", wireSignupLinkPurpleHold);
+</script>

@@ -21,7 +21,7 @@ gem "jbuilder"
 # gem "bcrypt", "~> 3.1.7"
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
-gem "tzinfo-data", platforms: %i[ windows jruby ]
+gem "tzinfo-data"   # sem platforms
 
 # Use the database-backed adapters for Rails.cache, Active Job, and Action Cable
 gem "solid_cache"
@@ -50,6 +50,8 @@ end
 
 group :development do
   gem "ruby-lsp"
+  gem 'letter_opener'
+  gem 'letter_opener_web'
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
 end

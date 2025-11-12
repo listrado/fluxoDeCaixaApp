@@ -1,0 +1,188 @@
+/* Layout centralizado */
+.auth-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: #f3f4f6; /* fundo da página levemente cinza */
+}
+
+/* Layout centralizado */
+.auth-wrapper-non-flex {
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: #f3f4f6; /* fundo da página levemente cinza */
+    place-items: center;
+}
+
+/* Card do login */
+.auth-card {
+    width: 100%;
+    max-width: 560px;
+    background: #f9fafb; /* “fundo mais clarinho” */
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 28px 24px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08); /* sombra */
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+/* Título azul e bonito */
+.auth-title {
+    margin: 0 0 16px;
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 800;
+    color: #2563eb; /* azul */
+}
+
+/* Linhas do formulário com label ao lado do input */
+.form-row {
+    display: grid;
+    align-items: center;
+    /*grid-template-columns: 150px 1fr; faz com que fique email e senha do lado da caixa*/
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.form-row label {
+    font-weight: 600;
+    color: #111827;
+}
+
+/* Inputs */
+.auth-input {
+    width: 98%;
+    padding: 10px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #fff;
+    font-weight: 500;
+    font-size: 16px;
+}
+.auth-input:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* Remember + botão na mesma linha, dentro do box */
+.actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
+}
+
+.remember {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #374151;
+}
+
+/* Botão verde */
+.btn-green {
+    appearance: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px 18px;
+    border-radius: 10px;
+    background: #10b981; /* verde */
+    color: #fff;
+    font-weight: 700;
+    transition: transform 0.06s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.25);
+}
+.btn-green:hover {
+    transform: translateY(-1px);
+}
+.btn-green:active {
+    transform: translateY(1px);
+}
+.btn-green[disabled] {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Links fora do box, centralizados abaixo */
+.auth-links {
+    text-align: center;
+    margin: 14px 0 0;
+    font-size: 14px;
+    color: #6b7280;
+}
+.auth-links a {
+    color: #2563eb;
+    text-decoration: none;
+}
+.auth-links a:hover {
+    text-decoration: underline;
+}
+
+/* coluna do input (para colocar o erro embaixo do input) */
+.input-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* banner de erro/aviso acima do form */
+.error-banner {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+.notice-banner {
+    background: #e0f2fe;
+    color: #075985;
+    border: 1px solid #bae6fd;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+/* erro por campo */
+.field-error {
+    display: block;
+    font-size: 12px;
+    color: #b91c1c;
+    min-height: 16px;
+}
+
+.auth-input.invalid {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+/* Link que quando clica fica roxo*/
+.link-purple {
+  color: #7a42f4;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+.link-purple:hover {
+  color: #692ee3;
+}
+.link-purple:active {
+  color: #5120b8;
+}
+
+
+/* Responsivo: empilha label acima do input em telas muito estreitas */
+@media (max-width: 480px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    .form-row label {
+        text-align: left;
+    }
+}

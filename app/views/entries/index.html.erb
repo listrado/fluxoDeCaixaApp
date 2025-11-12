@@ -206,9 +206,37 @@
   .w-100 { width:100%; }
 </style>
 
+<style>
+.flash{padding:12px 14px;border-radius:10px;margin:10px 0;display:flex;gap:10px;align-items:center}
+.flash-notice{background:#e8f5e9;border:1px solid #c8e6c9}
+.flash-alert{background:#fdecea;border:1px solid #f5c6cb}
+.btn-copy{padding:6px 10px;border:0;border-radius:8px;cursor:pointer;background:#e0e0e0}
+.btn-copy:hover{filter:brightness(0.95)}
+</style>
+
 <div class="sheet-wrap">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
     <h1 class="h5" style="margin:0;">Lançamentos</h1>
+    <% if notice.present? %>
+      <div class="flash flash-notice" id="flash-notice">
+        <span><%= notice %></span>
+        <% if notice.include?("Senha temporária gerada:") %>
+          <% senha = notice.split("Senha temporária gerada:").last.strip %>
+          <button type="button" data-copy="<%= senha %>" class="btn-copy">Copiar</button>
+        <% end %>
+      </div>
+    <% end %>
+
+    <% if alert.present? %>
+      <div class="flash flash-alert"><%= alert %></div>
+    <% end %>
+    <% if current_user&.user_class == "monk" %>
+      <%= button_to "Gerar senha temporária",
+                    temporary_passwords_path,
+                    method: :post,
+                    class: "btn-green",
+                    data: { turbo_confirm: "Gerar uma nova senha temporária?" } %>
+    <% end %>
   </div>
 
   <div class="toolbar-grid" style="margin-bottom:10px;">
@@ -452,6 +480,18 @@
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest(".btn-copy");
+    if (!btn) return;
+    const value = btn.getAttribute("data-copy");
+    navigator.clipboard.writeText(value).then(() => {
+      btn.textContent = "Copiado!";
+      setTimeout(() => btn.textContent = "Copiar", 2000);
+    });
+  });
+</script>
 
 <script>
   /* =========================================================

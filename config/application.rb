@@ -36,6 +36,9 @@ module FluxoDeCaixaApp
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
 
+    config.time_zone = "Brasilia"
+    config.active_record.default_timezone = :local
+
     # Don't generate system test files.
     config.generators.system_tests = nil
   end

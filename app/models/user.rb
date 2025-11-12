@@ -6,4 +6,8 @@ class User < ApplicationRecord
 
   has_many :entries, dependent: :destroy
 
+  def set_default_user_class
+    self.user_class ||= 'villager'
+  end
+
 end

@@ -1,0 +1,167 @@
+
+
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <h1 class="auth-title">Criar conta</h1>
+
+    <%# --- ERROS DO SERVIDOR (Devise) APÓS SUBMIT --- %>
+    <% if flash.alert.present? %>
+      <div class="error-banner" role="alert"><%= flash.alert %></div>
+    <% end %>
+    <% if flash.notice.present? %>
+      <div class="notice-banner" role="status"><%= flash.notice %></div>
+    <% end %>
+
+    <%# Quando Devise valida e retorna errors no resource (ex.: senha curta, email já usado) %>
+    <% if resource.errors.any? %>
+      <div class="error-banner" role="alert">
+        <ul style="margin:0;padding-left:18px;">
+          <% resource.errors.full_messages.each do |msg| %>
+            <li><%= msg %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <div id="client-errors" class="error-banner" role="alert" style="display:none;"></div>
+
+    <%= form_for(resource, as: resource_name, url: registration_path(resource_name),
+                 html: { id: "signup-form", "data-turbo-submits-with": "Carregando..." }) do |f| %>
+
+      <%# logo abaixo da abertura do form %>
+      <%= hidden_field_tag :invite, params[:invite].presence || session[:temp_signup_token] %>
+
+      <div class="form-row">
+        <%= f.label :email, "E-mail" %>
+        <div class="input-col">
+          <%= f.email_field :email,
+                autofocus: true,
+                autocomplete: "email",
+                class: "auth-input",
+                required: true,
+                "aria-describedby": "email-error" %>
+          <small id="email-error" class="field-error" aria-live="polite"></small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <%= f.label :password, "Senha" %>
+        <div class="input-col">
+          <%= f.password_field :password,
+                autocomplete: "new-password",
+                class: "auth-input",
+                required: true,
+                minlength: 6,
+                "aria-describedby": "password-error" %>
+          <small id="password-error" class="field-error" aria-live="polite"></small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <%= f.label :password_confirmation, "Confirmar senha" %>
+        <div class="input-col">
+          <%= f.password_field :password_confirmation,
+                autocomplete: "new-password",
+                class: "auth-input",
+                required: true,
+                minlength: 6,
+                "aria-describedby": "password-confirmation-error" %>
+          <small id="password-confirmation-error" class="field-error" aria-live="polite"></small>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <span></span>
+        <%= f.submit "Cadastrar", class: "btn-green" %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<div class="auth-links">
+  <%= render "devise/shared/links" %>
+</div>
+
+<script>
+  (function () {
+    const form = document.getElementById("signup-form");
+    const email = form.querySelector('input[type="email"]');
+    const pass  = form.querySelector('input[name="user[password]"]');
+    const pass2 = form.querySelector('input[name="user[password_confirmation]"]');
+
+    const emailErr = document.getElementById("email-error");
+    const passErr  = document.getElementById("password-error");
+    const pass2Err = document.getElementById("password-confirmation-error");
+    const clientErrs = document.getElementById("client-errors");
+
+    function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+    function clearBanner(){ clientErrs.style.display="none"; clientErrs.textContent=""; }
+    function setFieldError(input, el, msg){ input.classList.add("invalid"); el.textContent = msg || ""; }
+    function clearFieldError(input, el){ input.classList.remove("invalid"); el.textContent = ""; }
+
+    function validate(){
+      let ok = true; clearBanner();
+
+      // email
+      if(!email.value.trim()){
+        setFieldError(email, emailErr, "Informe seu e-mail.");
+        ok = false;
+      } else if(!isValidEmail(email.value.trim())){
+        setFieldError(email, emailErr, "E-mail inválido.");
+        ok = false;
+      } else {
+        clearFieldError(email, emailErr);
+      }
+
+      // senha
+      if(!pass.value){
+        setFieldError(pass, passErr, "Informe a senha.");
+        ok = false;
+      } else if(pass.value.length < 6){
+        setFieldError(pass, passErr, "A senha deve ter pelo menos 6 caracteres.");
+        ok = false;
+      } else {
+        clearFieldError(pass, passErr);
+      }
+
+      // confirmação
+      if(!pass2.value){
+        setFieldError(pass2, pass2Err, "Confirme a senha.");
+        ok = false;
+      } else if(pass.value && pass2.value && pass.value !== pass2.value){
+        setFieldError(pass2, pass2Err, "As senhas não conferem.");
+        ok = false;
+      } else if(pass2.value && pass2.value.length >= 6){
+        clearFieldError(pass2, pass2Err);
+      }
+
+      if(!ok){
+        clientErrs.textContent = "Corrija os campos destacados e tente novamente.";
+        clientErrs.style.display = "block";
+      }
+      return ok;
+    }
+
+    // realtime
+    email.addEventListener("input", () => {
+      if (email.value && isValidEmail(email.value)) clearFieldError(email, emailErr);
+    });
+    pass.addEventListener("input", () => {
+      if (pass.value && pass.value.length >= 6) clearFieldError(pass, passErr);
+    });
+    pass2.addEventListener("input", () => {
+      if (pass2.value && pass.value === pass2.value) clearFieldError(pass2, pass2Err);
+    });
+
+    // loading + bloqueio
+    form.addEventListener("submit", (e) => {
+      if(!validate()){ e.preventDefault(); return; }
+      const btn = form.querySelector('input[type=submit], button[type=submit]');
+      if (btn) {
+        btn.dataset.originalText = btn.value || btn.innerText;
+        if (btn.value !== undefined) { btn.value = "Carregando..."; } else { btn.innerText = "Carregando..."; }
+        btn.disabled = true;
+      }
+    });
+  })();
+</script>
